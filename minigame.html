@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>다른 글자 찾기 게임</title>
+    <style>
+        body {
+            font-family: "Pretendard", sans-serif;
+            text-align: center;
+            background-color: #f9f9f9;
+            transition: background 0.5s ease;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .word {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-size: 24px;
+            background: #f1f1f1;
+            cursor: pointer;
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
+        }
+        .correct {
+            border: 3px solid black;
+        }
+        .hidden-border {
+            border: none;
+        }
+        #message {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .countdown-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 60px;
+            height: 60px;
+            background-color: black;
+            color: white;
+            font-size: 24px;
+            border-radius: 50%;
+            margin: 0 auto;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            position: relative;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress {
+            height: 100%;
+            width: 100%;
+            background-color: #ff6347;
+            transition: width linear;
+        }
+        .dark-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0); opacity: 1; }
+            100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            animation: confetti 1.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="overlay" class="dark-overlay"></div>
+    <h1 id="message">다르게 적힌 글자를 찾아주세요</h1>
+    <div id="countdown" class="countdown-container">5</div>
+    <div id="progress-bar" class="progress-bar">
+        <div id="progress" class="progress"></div>
+    </div>
+    <div id="game" class="container" style="display: none;"></div>
+    
+    <script>
+        let countdown = 5;
+        let gameTime = 3;
+        let gameEnded = false;
+        let gameTimer;
+
+        const wordSets = [
+            { correct: "풀스택", wrong: "풀스턕" },
+            { correct: "디버깅", wrong: "디버킹" },
+            { correct: "프레임워크", wrong: "프레미워크" },
+            { correct: "컴파일", wrong: "캠파일" },
+            { correct: "알고리즘", wrong: "알골리즘" }
+        ];
+
+        const selectedSet = wordSets[Math.floor(Math.random() * wordSets.length)];
+        let words = new Array(16).fill(selectedSet.correct);
+        const differentIndex = Math.floor(Math.random() * words.length);
+        words[differentIndex] = selectedSet.wrong;
+
+        const countdownEl = document.getElementById("countdown");
+        const messageEl = document.getElementById("message");
+        const gameContainer = document.getElementById("game");
+        const progressBar = document.getElementById("progress-bar");
+        const progress = document.getElementById("progress");
+        const overlay = document.getElementById("overlay");
+
+        function startCountdown() {
+            const timer = setInterval(() => {
+                countdown--;
+                countdownEl.innerText = countdown;
+                if (countdown === 0) {
+                    clearInterval(timer);
+                    countdownEl.style.display = "none";
+                    startGame();
+                }
+            }, 1000);
+        }
+
+        function startGame() {
+            progressBar.style.display = "block";
+            progress.style.width = "100%";
+            progress.style.transition = `width ${gameTime}s linear`;
+            setTimeout(() => progress.style.width = "0%", 10);
+
+            gameContainer.style.display = "grid";
+            words.forEach((word, index) => {
+                const div = document.createElement("div");
+                div.innerText = word;
+                div.classList.add("word", "hidden-border");
+                div.addEventListener("click", () => checkAnswer(index, div));
+                gameContainer.appendChild(div);
+            });
+            gameTimer = setTimeout(() => endGame(false), gameTime * 1000);
+        }
+
+        function checkAnswer(index, element) {
+            if (gameEnded) return;
+            gameEnded = true;
+            clearTimeout(gameTimer);
+            progress.style.transition = "none";
+            progress.style.width = "0%";
+
+            if (index === differentIndex) {
+                messageEl.innerText = "🎉 성공! 정답을 찾았습니다! 🎉";
+                element.classList.remove("hidden-border");
+                element.classList.add("correct");
+                gameContainer.style.pointerEvents = "none";
+                playConfetti();  // ✅ 성공하면 팡파레 터짐
+            } else {
+                messageEl.innerText = "❌ 실패! 틀린 글자를 선택했습니다. ❌";
+                overlay.style.display = "block";  // ✅ 오답 시 화면 어두워짐
+                endGame(false);
+            }
+        }
+
+        function endGame(success) {
+            if (gameEnded) return;
+            gameEnded = true;
+            clearTimeout(gameTimer);
+            progress.style.transition = "none";
+            progress.style.width = "0%";
+
+            if (!success) {
+                overlay.style.display = "block";  // ✅ 시간 초과 시 화면 어두워짐
+                messageEl.innerText = "❌ 실패! 다음엔 더 집중해보세요. ❌";
+            }
+
+            const correctElement = gameContainer.children[differentIndex];
+            correctElement.classList.remove("hidden-border");
+            correctElement.classList.add("correct");
+            gameContainer.style.pointerEvents = "none";
+        }
+
+        function playConfetti() {
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement("div");
+                confetti.classList.add("confetti");
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.top = `${Math.random() * 100}vh`;
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 1500);
+            }
+        }
+
+        startCountdown();
+    </script>
+</body>
+</html>
